@@ -1,14 +1,17 @@
 import tensorflow as tf
-from tensorflow.python import keras
-from keras import layers, models, applications
-from keras._tf_keras.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers, models, applications
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import json
 import matplotlib.pyplot as plt
+
+tf.config.threading.set_intra_op_parallelism_threads(24)
+tf.config.threading.set_inter_op_parallelism_threads(24)
 
 dataset_path_training = "dataset/fruits-360/Training"
 dataset_path_testing = "dataset/fruits-360/Test"
 
 data_gen = ImageDataGenerator(
-    rescale=1.0 /255,
+    rescale=1.0 / 255,
     rotation_range=20,
     width_shift_range=0.2,
     height_shift_range=0.2,
@@ -66,5 +69,8 @@ plt.show()
 
 test_loss, test_acc = model.evaluate(test_data)
 print(f"Test Accuracy: {test_acc:.2f}")
+
+with open('class_indices.json', 'w') as f:
+    json.dump(train_data.class_indices, f)
 
 model.save("fruits_classifier.h5")
