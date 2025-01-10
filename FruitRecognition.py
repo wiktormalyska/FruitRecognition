@@ -1,76 +1,67 @@
-import tensorflow as tf
-from tensorflow.keras import layers, models, applications
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import json
 import matplotlib.pyplot as plt
+import tensorflow as tf
+import os
+from keras.utils import img_to_array, load_img
+import numpy as np
+import cv2
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import EarlyStopping
 
-tf.config.threading.set_intra_op_parallelism_threads(24)
-tf.config.threading.set_inter_op_parallelism_threads(24)
+project_dir = os.path.dirname(os.path.abspath(__file__))
+train_path = os.path.join(project_dir, "dataset", "fruits-360", "Training")
+test_path = os.path.join(project_dir, "dataset", "fruits-360", "Test")
 
-dataset_path_training = "dataset/fruits-360/Training"
-dataset_path_testing = "dataset/fruits-360/Test"
+BatchSize = 64
 
-data_gen = ImageDataGenerator(
-    rescale=1.0 / 255,
-    rotation_range=20,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    zoom_range=0.2,
-)
+model = Sequential()
+model.add(Conv2D(filters=128, kernel_size=3, activation="relu", input_shape=(100,100,3) ))
+model.add(MaxPooling2D())
+model.add(Conv2D(filters=64, kernel_size=3, activation="relu"))
+model.add(Conv2D(filters=32, kernel_size=3, activation="relu"))
+model.add(MaxPooling2D())
+model.add(Dropout(0.5))
+model.add(Flatten())
+model.add(Dense(5000, activation="relu"))
+model.add(Dense(1000, activation="relu"))
+model.add(Dense(141, activation="softmax"))
 
-train_data = data_gen.flow_from_directory(
-    dataset_path_training,
-    target_size=(100, 100),
-    batch_size=32,
-    class_mode='categorical'
-)
+model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+# model.compile(loss="categorical_crossentropy", optimizer="SGD", metrics=["accuracy"])
 
-test_data = data_gen.flow_from_directory(
-    dataset_path_testing,
-    target_size=(100, 100),
-    batch_size=32,
-    class_mode='categorical'
-)
+train_datagen = ImageDataGenerator(rescale= 1./225,
+                                   shear_range=0.3,
+                                   horizontal_flip=True,
+                                   vertical_flip=True,
+                                   zoom_range=0.3)
 
-base_model = applications.MobileNetV2(
-    weights='imagenet',
-    include_top=False,
-    input_shape=(100, 100, 3)
-)
+test_datagen = ImageDataGenerator(rescale= 1./225)
 
-base_model.trainable = False
+train_generator = train_datagen.flow_from_directory(train_path,
+                                                    target_size=(100,100),
+                                                    batch_size=BatchSize,
+                                                    color_mode="rgb",
+                                                    class_mode="categorical",
+                                                    shuffle=True)
 
-model = models.Sequential([
-    base_model,
-    layers.GlobalAveragePooling2D(),
-    layers.Dense(128, activation='relu'),
-    layers.Dropout(0.3),
-    layers.Dense(train_data.num_classes, activation='softmax')
-])
+test_generator = test_datagen.flow_from_directory(test_path,
+                                                    target_size=(100,100),
+                                                    batch_size=BatchSize,
+                                                    color_mode="rgb",
+                                                    class_mode="categorical")
 
-model.compile(
-    optimizer='adam',
-    loss='categorical_crossentropy',
-    metrics=['accuracy']
-)
+stepsPerEpoch = np.ceil(train_generator.samples / BatchSize)
+validationSteps = np.ceil(test_generator.samples / BatchSize)
 
-history = model.fit(
-    train_data,
-    validation_data=test_data,
-    epochs=10
-)
+stop_early = EarlyStopping(monitor="val_accuracy", patience=3)
 
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
+history = model.fit(train_generator,
+                    steps_per_epoch=stepsPerEpoch,
+                    epochs=50,
+                    validation_data=test_generator,
+                    validation_steps=validationSteps,
+                    callbacks=[stop_early])
 
-test_loss, test_acc = model.evaluate(test_data)
-print(f"Test Accuracy: {test_acc:.2f}")
-
-with open('class_indices.json', 'w') as f:
-    json.dump(train_data.class_indices, f)
-
-model.save("fruits_classifier.h5")
+model.save(project_dir + "/fruits_classifier_adam.h5")
+# model.save(project_dir + "/fruits_classifier.h5")
