@@ -1,54 +1,102 @@
-from cgitb import reset
-
-import tensorflow as tf
 import os
-from keras.utils import img_to_array, load_img
+import tensorflow as tf
 import numpy as np
-import cv2
+import tkinter as tk
+from tkinter import PhotoImage
+from keras.utils import img_to_array, load_img
+from PIL import Image, ImageTk
 
-model = tf.keras.models.load_model("fruits_classifier.h5")
-# model = tf.keras.models.load_model("fruits_classifier_adam.h5")
+# Ładujemy model
+model = tf.keras.models.load_model("fruits_classifier_with_conv_layers.h5")
 
 project_dir = os.path.dirname(os.path.abspath(__file__))
 
-
-source_folder = os.path.join(project_dir, "dataset", "fruits-360", "Test")
+source_folder = os.path.join(project_dir, "dataset", "fruits", "train")
 categories = os.listdir(source_folder)
 categories.sort()
 
 def prepare_image(path_for_image):
-    img = load_img(path_for_image, target_size=(100,100))
+    # Zmieniamy rozmiar obrazu do (250, 250), bo taki rozmiar oczekuje model
+    img = load_img(path_for_image, target_size=(250, 250))  # Zmieniamy na 250x250
     img_result = img_to_array(img)
-    print(img_result.shape)
     img_result = np.expand_dims(img_result, axis=0)
-    print(img_result.shape)
-    img_result = img_result/255
+    img_result = img_result / 255  # Normalizacja
     return img_result
 
-def predict_and_display(image_path):
 
+def predict_and_display(image_path):
     image_for_model = prepare_image(image_path)
     result_array = model.predict(image_for_model, verbose=1)
     answer = np.argmax(result_array, axis=1)[0]
     text = categories[answer]
+    return text, image_path
 
-    print(f"Predicted: {text}")
+def update_image_and_text(image_path, text):
+    # Używamy Pillow do załadowania obrazu
+    img = Image.open(image_path)
+    img_resized = img.resize((250, 250))  # Zmieniamy rozmiar na 250x250
 
+    # Konwertujemy obraz do formatu, który Tkinter potrafi obsłużyć
+    img_tk = ImageTk.PhotoImage(img_resized)
 
-    img = cv2.imread(image_path)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(img, text, (10, 50), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    cv2.imshow(f"Prediction - {text}", img)
+    # Wyświetlamy obraz
+    image_label.config(image=img_tk)
+    image_label.image = img_tk  # Przechowujemy referencję do obrazu, aby nie został usunięty przez garbage collector
 
-def process_images_in_folder(folder_path):
+    # Wyświetlamy tekst
+    text_label.config(text=text)
+# Wczytanie folderu z obrazami
+img_folder_path = os.path.join(project_dir, "dataset", "fruits", "predict")
+image_files = [f for f in os.listdir(img_folder_path) if f.endswith((".png", ".jpg", ".jpeg"))]
+image_files.sort()
 
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".png") or filename.endswith(".jpg") or filename.endswith(".jpeg"):
-            image_path = os.path.join(folder_path, filename)
-            predict_and_display(image_path)
+# Globalne zmienne do śledzenia bieżącego obrazu
+current_index = 0
 
-img_folder_path = os.path.join(project_dir, "img")
-process_images_in_folder(img_folder_path)
+def show_next_image():
+    global current_index
+    current_index = (current_index + 1) % len(image_files)
+    image_path = os.path.join(img_folder_path, image_files[current_index])
+    text, _ = predict_and_display(image_path)
+    update_image_and_text(image_path, text)
 
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+def show_prev_image():
+    global current_index
+    current_index = (current_index - 1) % len(image_files)
+    image_path = os.path.join(img_folder_path, image_files[current_index])
+    text, _ = predict_and_display(image_path)
+    update_image_and_text(image_path, text)
+
+# Tworzymy GUI
+root = tk.Tk()
+root.title("Galeria Zdjęć")
+root.geometry("800x600")
+
+# Ramka na zdjęcie i tekst
+frame = tk.Frame(root)
+frame.pack(pady=50)
+
+# Tekst nad zdjęciem
+text_label = tk.Label(frame, text="Opis zdjęcia", font=("Arial", 16))
+text_label.pack()
+
+# Miejsce na zdjęcie
+image_label = tk.Label(frame)
+image_label.pack()
+
+# Ramka na przyciski
+button_frame = tk.Frame(root)
+button_frame.pack(side="bottom", pady=20)
+
+# Przyciski na dole
+prev_button = tk.Button(button_frame, text="Poprzednie zdjęcie", command=show_prev_image)
+prev_button.pack(side="left", padx=20)
+
+next_button = tk.Button(button_frame, text="Następne zdjęcie", command=show_next_image)
+next_button.pack(side="right", padx=20)
+
+# Pokazanie pierwszego obrazu przy uruchomieniu
+show_next_image()
+
+# Uruchamiamy pętlę główną aplikacji
+root.mainloop()
