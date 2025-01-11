@@ -1,6 +1,7 @@
 ## Fruit Recognition
 
 ---
+![2025-01-11 02-41-52](https://github.com/user-attachments/assets/5b5ed1fd-bb92-4511-beb9-fd3d85f9295f)
 
 ### Dataset: [Kaggle Fruit Classification (10 Classes)](https://www.kaggle.com/datasets/karimabdulnabi/fruit-classification10-class/data)
 
