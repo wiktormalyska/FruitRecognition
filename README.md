@@ -81,4 +81,3 @@ The trained model was saved in the `h5` format as `fruits_classifier_with_conv_l
 - **Quality Control:** Use in food processing to detect and classify fruits.
 
 This model can serve as a foundational approach for more complex image recognition tasks by further tuning and using larger datasets.
-![{53CD9C8E-FF1E-4F8E-8C71-2A446E634F91}](https://github.com/user-attachments/assets/cb4e7405-4fb0-474a-af89-a9a9890a5c3d)
