@@ -3,6 +3,8 @@
 ---
 ![2025-01-1102-41-52-ezgif com-speed (2)](https://github.com/user-attachments/assets/35becbf4-bac5-4b10-b73f-a59a37355915)
 
+### Model accuracy: 88%
+
 ### Dataset: [Kaggle Fruit Classification (10 Classes)](https://www.kaggle.com/datasets/karimabdulnabi/fruit-classification10-class/data)
 
 #### This dataset contains 10 classes of fruits. The dataset contains 10 folders, one for each class of fruit. The folder names are:
