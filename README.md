@@ -1,83 +1,148 @@
-## Fruit Recognition
+# 🍎 Fruit Classification with CNN and K-Fold Cross-Validation  
 
----
-![2025-01-1102-41-52-ezgif com-speed (2)](https://github.com/user-attachments/assets/35becbf4-bac5-4b10-b73f-a59a37355915)
+This project is a deep learning-based fruit classification system using Convolutional Neural Networks (CNNs).  
+The model is trained and evaluated using K-Fold Cross-Validation to improve generalization.  
+Additionally, a visualization tool is provided to interpret model predictions with heatmaps.  
 
-### Model accuracy: 88%
+## 📂 Project Structure  
 
-### Dataset: [Kaggle Fruit Classification (10 Classes)](https://www.kaggle.com/datasets/karimabdulnabi/fruit-classification10-class/data)
+```plaintext
+📦 fruit-classification
+├── 📂 dataset
+│   ├── 📂 fruits-360
+│   │   ├── 📂 train
+│   │   ├── 📂 test
+│   │   ├── 📂 predict
+├── 📝 config.py
+├── 🏋️ FruitRecognition.py
+├── 🖼️ TestFruitRecognition.py
+├── 📊 TestGPU.py
+└── 📜 README.md
+```
 
-#### This dataset contains 10 classes of fruits. The dataset contains 10 folders, one for each class of fruit. The folder names are:
-1. Apple
-2. Avocado
-3. Banana
-4. Cherry
-5. Kiwi
-6. Mango
-7. Orange
-8. Pineapple
-9. Strawberries
-10. Watermelon
+## ⚙️ Configuration (config.py)
+```python
+K_FOLDS = 10
+IMAGE_SIZE = (128, 128)
+BATCH_SIZE = 128
+EPOCHS = 30
+EARLY_STOPPING_PATIENCE = 20
+LEARNING_RATE = 0.0001
+```
 
-#### Each folder contains images of the respective fruit. The images are of various sizes and shapes. The dataset is not very large, but it is sufficient for training a simple model.
+## 🏋️ Training (FruitRecognition.py)
+The `FruitRecognition.py` script:
 
----
+- Loads and augments fruit images from the Fruits-360 dataset
+- Defines a CNN model for image classification
+- Applies K-Fold Cross-Validation (K=10) to improve generalization
+- Uses Early Stopping to prevent overfitting
+- Saves trained models for each fold
 
-### Model Overview
+### Model Architecture
+```python
+model.add(Conv2D(32, (3,3), activation="relu", input_shape=(128, 128, 3)))
+model.add(BatchNormalization())
+model.add(MaxPooling2D())
+model.add(Dropout(0.3))
 
-The fruit recognition model was built using the TensorFlow framework and the Keras API. It is designed to classify images into one of 10 fruit categories based on the provided dataset.
+model.add(Conv2D(64, (3,3), activation="relu"))
+model.add(BatchNormalization())
+model.add(MaxPooling2D())
+model.add(Dropout(0.3))
 
-#### Model Architecture
-The model uses a Convolutional Neural Network (CNN) architecture, which is highly effective for image classification tasks. 
-
-**Key components of the model architecture:**
-1. **Input Layer:**
-   - Input image size: `250x250x3` (RGB images with 250x250 resolution).
-
-2. **Convolutional Blocks:**
-   - 4 convolutional layers with filter sizes increasing from 32 to 256.
-   - Each convolutional layer uses a kernel size of `3x3` and ReLU activation.
-   - Batch Normalization is applied after each convolutional layer to stabilize and accelerate training.
-   - MaxPooling layers are used to reduce spatial dimensions.
-
-3. **Regularization:**
-   - Dropout layers (30% to 40%) are added to reduce overfitting by randomly deactivating neurons during training.
-
-4. **Fully Connected Layers:**
-   - A Flatten layer transforms the 2D feature maps into a 1D vector.
-   - Two dense layers with 4096 and 2048 neurons, respectively, followed by ReLU activation.
-   - A final dense layer with 10 neurons (one for each fruit class) and softmax activation for output probabilities.
-
-5. **Optimizer and Loss Function:**
-   - Loss function: Categorical Crossentropy, suitable for multi-class classification.
-   - Optimizer: SGD (Stochastic Gradient Descent) with a learning rate optimized during training.
-   - Metric: Accuracy.
-
----
+model.add(Flatten())
+model.add(Dense(1024, activation="relu"))
+model.add(Dropout(0.5))
+model.add(Dense(num_classes, activation="softmax"))
+```
 
 ### Training Process
-The model was trained on the training portion of the dataset using the following parameters:
-- **Batch Size:** 64
-- **Epochs:** 150
-- **Data Augmentation:** 
-  - Applied to the training data to increase diversity:
-    - Rescaling pixel values to [0, 1].
-    - Horizontal and vertical flips.
-    - Random zoom and shear transformations.
-- **Validation Data:** The test dataset was used for validation during training.
+```python
+history = model.fit(
+    train_generator,
+    epochs=EPOCHS,
+    validation_data=val_generator
+)
+```
+The trained models are saved as:
+```plaintext
+fruits_classifier_fold1.h5
+fruits_classifier_fold2.h5
+...
+fruits_classifier_fold10.h5
+```
 
-The training achieved an accuracy of **88% after 150 epochs**, indicating a high level of performance for this dataset.
+## 🔍 Prediction & Heatmap Visualization (TestFruitRecognition.py)
+The `TestFruitRecognition.py` script:
 
----
+- Loads the trained K models
+- Predicts fruit categories from new images
+- Generates Class Activation Maps (CAMs) to visualize important features
+- Uses Tkinter GUI for interactive evaluation
 
-### Model Evaluation
-The trained model was saved in the `h5` format as `fruits_classifier_with_conv_layers.h5`. It can be used to predict the fruit type of new images by preprocessing them to match the input size (250x250) and normalizing pixel values.
+### Example Prediction Flow
+```python
+image = load_img(image_path, target_size=IMAGE_SIZE)
+image = img_to_array(image) / 255.0
+image = np.expand_dims(image, axis=0)
 
----
+predictions = [model.predict(image) for model in models]
+avg_prediction = np.mean(predictions, axis=0)
+```
 
-### Potential Applications
-- **Grocery Store Automation:** Automatically identify fruits at checkout counters.
-- **Educational Tools:** Teach children to recognize different types of fruits.
-- **Quality Control:** Use in food processing to detect and classify fruits.
+### Heatmap Generation
+```python
+def generate_heatmap(model, image):
+    grad_model = tf.keras.models.Model([model.input], [model.get_layer("conv2d").output, model.output])
+    with tf.GradientTape() as tape:
+        conv_output, prediction = grad_model(image)
+        loss = prediction[:, np.argmax(prediction)]
+    grads = tape.gradient(loss, conv_output)
+    heatmap = np.maximum(conv_output[0] @ grads[..., np.newaxis], 0)
+    heatmap /= np.max(heatmap)
+    return heatmap
+```
 
-This model can serve as a foundational approach for more complex image recognition tasks by further tuning and using larger datasets.
+### Interactive GUI
+The GUI helps in manually verifying predictions.
+It allows users to accept (OK) or reject (Not OK) the predicted fruit category.
+```python
+root = tk.Tk()
+root.title("Fruit Classification")
+text_label = tk.Label(root, text="Prediction:")
+text_label.pack()
+image_label = tk.Label(root)
+image_label.pack()
+ok_button = tk.Button(root, text="OK", command=lambda: evaluate(True))
+not_ok_button = tk.Button(root, text="Not OK", command=lambda: evaluate(False))
+ok_button.pack()
+not_ok_button.pack()
+root.mainloop()
+```
+
+### Results
+After evaluating predictions, the script calculates the accuracy based on user feedback.
+```python
+accuracy = (correct_predictions / len(image_files)) * 100
+print(f"Final Accuracy: {accuracy:.2f}%")
+```
+
+## 🚀 How to Run
+### Recommended Python 3.9
+
+### 1️⃣ Install Dependencies
+```sh
+pip install tensorflow keras numpy matplotlib opencv-python pillow
+```
+### 2️⃣ Train the Model
+```sh
+python FruitRecognition.py
+```
+### 3️⃣ Run the Prediction GUI
+```sh
+python TestFruitRecognition.py
+```
+## 🏆 Acknowledgments
+- [Fruits-360 Dataset](https://www.kaggle.com/datasets/moltean/fruits)
+- TensorFlow & Keras Community

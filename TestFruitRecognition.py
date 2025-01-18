@@ -17,7 +17,7 @@ for fold in range(K):
     model = tf.keras.models.load_model(model_path)
     models.append(model)
 
-source_folder = os.path.join(project_dir, "dataset", "fruits", "train")
+source_folder = os.path.join(project_dir, "dataset", "fruits-360", "train")
 categories = os.listdir(source_folder)
 categories.sort()
 
